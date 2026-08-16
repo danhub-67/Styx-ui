@@ -1,0 +1,2056 @@
+local StyxUI = { Themes = {}, CurrentTheme = nil, Icons = {} }
+
+local success, result = pcall(function()
+	return game:HttpGet(
+		"https://gist.githubusercontent.com/Styx-ui/326e7d2471fca9e908649a19d829f9e3/raw/d037c62a10765eb4f890d8983c27c626630657fd/Icons"
+	)
+end)
+
+if success and result then
+	local loadSuccess, loadedIcons = pcall(function()
+		return loadstring(result)()
+	end)
+	if loadSuccess and type(loadedIcons) == "table" then
+		StyxUI.Icons = loadedIcons
+	end
+end
+
+if not StyxUI.Icons or next(StyxUI.Icons) == nil then
+	StyxUI.Icons = {
+		["home"] = "rbxassetid://10723407389",
+		["user"] = "rbxassetid://10747373176",
+		["settings"] = "rbxassetid://10734950309",
+		["search"] = "rbxassetid://10734934585",
+		["bell"] = "rbxassetid://10723045999",
+		["chevron-down"] = "rbxassetid://10709790948",
+		["check"] = "rbxassetid://10709790644",
+		["minus"] = "rbxassetid://10747384394",
+		["arrow-up-right"] = "rbxassetid://10709790487",
+	}
+end
+
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local GuiService = game:GetService("GuiService")
+local SoundService = game:GetService("SoundService")
+
+local function PlaySound(id, vol)
+	local s = Instance.new("Sound")
+	s.SoundId = "rbxassetid://" .. tostring(id)
+	s.Volume = vol or 0.2
+	s.Parent = SoundService
+	s:Play()
+	s.Ended:Connect(function()
+		s:Destroy()
+	end)
+end
+
+local tweenInfoHover = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local tweenInfoClick = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local tweenInfoRelease = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local tweenInfoPop = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+function StyxUI:Gradient(keys, config)
+	local keypoints = {}
+	for pos, data in pairs(keys) do
+		local p = tonumber(pos) / 100
+		table.insert(keypoints, ColorSequenceKeypoint.new(p, data.Color))
+	end
+	table.sort(keypoints, function(a, b)
+		return a.Time < b.Time
+	end)
+	return {
+		Type = "Gradient",
+		ColorSequence = ColorSequence.new(keypoints),
+		Rotation = config and config.Rotation or 0,
+	}
+end
+
+StyxUI.Themes.Dark = {
+	Name = "Dark",
+	Accent = Color3.fromHex("#1c1c1f"),
+	Outline = Color3.fromHex("#33333a"),
+	Text = Color3.fromHex("#FFFFFF"),
+	Placeholder = Color3.fromHex("#8f8f99"),
+	Icon = Color3.fromHex("#b4b4bb"),
+	Toggle = Color3.fromHex("#34d399"),
+	Slider = Color3.fromHex("#38bdf8"),
+	ElementBackground = Color3.fromHex("#131316"),
+}
+
+StyxUI.Themes.Light = {
+	Name = "Light",
+	Accent = Color3.fromHex("#eceef1"),
+	Outline = Color3.fromHex("#d8dade"),
+	Text = Color3.fromHex("#18181b"),
+	Placeholder = Color3.fromHex("#7d818a"),
+	Icon = Color3.fromHex("#5b5f66"),
+	Toggle = Color3.fromHex("#22c55e"),
+	Slider = Color3.fromHex("#3b82f6"),
+	ElementBackground = Color3.fromHex("#f7f8fa"),
+}
+
+StyxUI.Themes.Rose = {
+	Name = "Rose",
+	Accent = Color3.fromHex("#9d174d"),
+	Outline = Color3.fromHex("#fb7185"),
+	Text = Color3.fromHex("#fff1f2"),
+	Placeholder = Color3.fromHex("#fda4af"),
+	Icon = Color3.fromHex("#fda4af"),
+	Toggle = Color3.fromHex("#fb7185"),
+	Slider = Color3.fromHex("#e11d48"),
+	ElementBackground = Color3.fromHex("#500724"),
+}
+
+StyxUI.Themes.Plant = {
+	Name = "Plant",
+	Accent = Color3.fromHex("#166534"),
+	Outline = Color3.fromHex("#4ade80"),
+	Text = Color3.fromHex("#f0fdf4"),
+	Placeholder = Color3.fromHex("#86efac"),
+	Icon = Color3.fromHex("#4ade80"),
+	Toggle = Color3.fromHex("#4ade80"),
+	Slider = Color3.fromHex("#16a34a"),
+	ElementBackground = Color3.fromHex("#0f3d24"),
+}
+
+StyxUI.Themes.Red = {
+	Name = "Red",
+	Accent = Color3.fromHex("#991b1b"),
+	Outline = Color3.fromHex("#f87171"),
+	Text = Color3.fromHex("#fef2f2"),
+	Placeholder = Color3.fromHex("#fca5a5"),
+	Icon = Color3.fromHex("#f87171"),
+	Toggle = Color3.fromHex("#f87171"),
+	Slider = Color3.fromHex("#dc2626"),
+	ElementBackground = Color3.fromHex("#450a0a"),
+}
+
+StyxUI.Themes.Indigo = {
+	Name = "Indigo",
+	Accent = Color3.fromHex("#3730a3"),
+	Outline = Color3.fromHex("#818cf8"),
+	Text = Color3.fromHex("#eef2ff"),
+	Placeholder = Color3.fromHex("#a5b4fc"),
+	Icon = Color3.fromHex("#818cf8"),
+	Toggle = Color3.fromHex("#818cf8"),
+	Slider = Color3.fromHex("#4f46e5"),
+	ElementBackground = Color3.fromHex("#1e1b4b"),
+}
+
+StyxUI.Themes.Sky = {
+	Name = "Sky",
+	Accent = Color3.fromHex("#075985"),
+	Outline = Color3.fromHex("#38bdf8"),
+	Text = Color3.fromHex("#f0f9ff"),
+	Placeholder = Color3.fromHex("#7dd3fc"),
+	Icon = Color3.fromHex("#38bdf8"),
+	Toggle = Color3.fromHex("#38bdf8"),
+	Slider = Color3.fromHex("#0284c7"),
+	ElementBackground = Color3.fromHex("#082f49"),
+}
+
+StyxUI.Themes.Violet = {
+	Name = "Violet",
+	Accent = Color3.fromHex("#5b21b6"),
+	Outline = Color3.fromHex("#a78bfa"),
+	Text = Color3.fromHex("#f5f3ff"),
+	Placeholder = Color3.fromHex("#c4b5fd"),
+	Icon = Color3.fromHex("#a78bfa"),
+	Toggle = Color3.fromHex("#a78bfa"),
+	Slider = Color3.fromHex("#7c3aed"),
+	ElementBackground = Color3.fromHex("#2e1065"),
+}
+
+StyxUI.Themes.Amber = {
+	Name = "Amber",
+	Accent = StyxUI:Gradient(
+		{ ["0"] = { Color = Color3.fromHex("#92400e") }, ["100"] = { Color = Color3.fromHex("#f59e0b") } },
+		{ Rotation = 45 }
+	),
+	Outline = Color3.fromHex("#fbbf24"),
+	Text = Color3.fromHex("#fffbeb"),
+	Placeholder = Color3.fromHex("#fde68a"),
+	Icon = Color3.fromHex("#fbbf24"),
+	Toggle = Color3.fromHex("#fbbf24"),
+	Slider = Color3.fromHex("#d97706"),
+	ElementBackground = Color3.fromHex("#451a03"),
+}
+
+StyxUI.Themes.Emerald = {
+	Name = "Emerald",
+	Accent = Color3.fromHex("#065f46"),
+	Outline = Color3.fromHex("#34d399"),
+	Text = Color3.fromHex("#ecfdf5"),
+	Placeholder = Color3.fromHex("#6ee7b7"),
+	Icon = Color3.fromHex("#34d399"),
+	Toggle = Color3.fromHex("#34d399"),
+	Slider = Color3.fromHex("#059669"),
+	ElementBackground = Color3.fromHex("#022c22"),
+}
+
+StyxUI.Themes.Midnight = {
+	Name = "Midnight",
+	Accent = Color3.fromHex("#0f172a"),
+	Outline = Color3.fromHex("#475569"),
+	Text = Color3.fromHex("#f8fafc"),
+	Placeholder = Color3.fromHex("#94a3b8"),
+	Icon = Color3.fromHex("#cbd5e1"),
+	Toggle = Color3.fromHex("#38bdf8"),
+	Slider = Color3.fromHex("#0284c7"),
+	ElementBackground = Color3.fromHex("#020617"),
+}
+
+StyxUI.Themes.Crimson = {
+	Name = "Crimson",
+	Accent = Color3.fromHex("#881337"),
+	Outline = Color3.fromHex("#fb7185"),
+	Text = Color3.fromHex("#fff1f2"),
+	Placeholder = Color3.fromHex("#fda4af"),
+	Icon = Color3.fromHex("#fb7185"),
+	Toggle = Color3.fromHex("#fb7185"),
+	Slider = Color3.fromHex("#e11d48"),
+	ElementBackground = Color3.fromHex("#4c0519"),
+}
+
+StyxUI.Themes["Monokai Pro"] = {
+	Name = "Monokai Pro",
+	Accent = Color3.fromHex("#2d2a2e"),
+	Outline = Color3.fromHex("#ffd866"),
+	Text = Color3.fromHex("#fcfcfa"),
+	Placeholder = Color3.fromHex("#939293"),
+	Icon = Color3.fromHex("#ff6188"),
+	Toggle = Color3.fromHex("#a9dc76"),
+	Slider = Color3.fromHex("#78dce8"),
+	ElementBackground = Color3.fromHex("#221f22"),
+}
+
+StyxUI.Themes["Cotton Candy"] = {
+	Name = "Cotton Candy",
+	Accent = StyxUI:Gradient(
+		{ ["0"] = { Color = Color3.fromHex("#f9a8d4") }, ["100"] = { Color = Color3.fromHex("#7dd3fc") } },
+		{ Rotation = 90 }
+	),
+	Outline = Color3.fromHex("#f9a8d4"),
+	Text = Color3.fromHex("#fdf2f8"),
+	Placeholder = Color3.fromHex("#fbcfe8"),
+	Icon = Color3.fromHex("#f9a8d4"),
+	Toggle = Color3.fromHex("#7dd3fc"),
+	Slider = Color3.fromHex("#f472b6"),
+	ElementBackground = Color3.fromHex("#581c87"),
+}
+
+StyxUI.Themes.Mellowsi = {
+	Name = "Mellowsi",
+	Accent = Color3.fromHex("#1e1b18"),
+	Outline = Color3.fromHex("#d4a373"),
+	Text = Color3.fromHex("#faedcd"),
+	Placeholder = Color3.fromHex("#ccd5ae"),
+	Icon = Color3.fromHex("#d4a373"),
+	Toggle = Color3.fromHex("#e9edc9"),
+	Slider = Color3.fromHex("#d4a373"),
+	ElementBackground = Color3.fromHex("#282421"),
+}
+
+local RainbowGradient = StyxUI:Gradient({
+	["0"] = { Color = Color3.fromHex("#ef4444") },
+	["20"] = { Color = Color3.fromHex("#f97316") },
+	["40"] = { Color = Color3.fromHex("#eab308") },
+	["60"] = { Color = Color3.fromHex("#22c55e") },
+	["80"] = { Color = Color3.fromHex("#3b82f6") },
+	["100"] = { Color = Color3.fromHex("#a855f7") },
+}, { Rotation = 45 })
+
+StyxUI.Themes.Rainbow = {
+	Name = "Rainbow",
+	Accent = RainbowGradient,
+	Outline = RainbowGradient,
+	Text = Color3.fromHex("#ffffff"),
+	Placeholder = Color3.fromHex("#d1d5db"),
+	Icon = Color3.fromHex("#ffffff"),
+	Toggle = RainbowGradient,
+	Slider = RainbowGradient,
+	ElementBackground = Color3.fromHex("#18181b"),
+}
+
+local MainGui = Instance.new("ScreenGui")
+MainGui.Name = "StyxUI_FullEngine"
+MainGui.ResetOnSpawn = false
+MainGui.Parent = CoreGui
+
+local NotificationHolder = Instance.new("Frame")
+NotificationHolder.Size = UDim2.new(0, 240, 1, -20)
+NotificationHolder.Position = UDim2.new(1, -250, 0, 10)
+NotificationHolder.BackgroundTransparency = 1
+NotificationHolder.ZIndex = 100
+NotificationHolder.Parent = MainGui
+
+local NotifList = Instance.new("UIListLayout")
+NotifList.VerticalAlignment = Enum.VerticalAlignment.Bottom
+NotifList.Padding = UDim.new(0, 6)
+NotifList.Parent = NotificationHolder
+
+local function AddCorner(radius, parent)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius)
+	c.Parent = parent
+	return c
+end
+
+local function ApplyThemeValue(instance, prop, value)
+	if type(value) == "table" and value.Type == "Gradient" then
+		instance[prop] = Color3.fromRGB(255, 255, 255)
+		local grad = instance:FindFirstChildOfClass("UIGradient") or Instance.new("UIGradient")
+		grad.Color = value.ColorSequence
+		grad.Rotation = value.Rotation
+		grad.Parent = instance
+	elseif typeof(value) == "Color3" then
+		local grad = instance:FindFirstChildOfClass("UIGradient")
+		if grad then
+			grad:Destroy()
+		end
+		instance[prop] = value
+	end
+end
+
+local function AddButtonAnimation(interactiveInst, targetFrame, scaleAmount, fixedOriginalSize)
+	scaleAmount = scaleAmount or 0.96
+	local originalSize = fixedOriginalSize or targetFrame.Size
+
+	interactiveInst.MouseEnter:Connect(function()
+		TweenService:Create(
+			targetFrame,
+			tweenInfoHover,
+			{ Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset, originalSize.Y.Scale, originalSize.Y.Offset) }
+		):Play()
+		local stroke = targetFrame:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			TweenService:Create(stroke, tweenInfoHover, { Transparency = 0.2 }):Play()
+		end
+	end)
+
+	interactiveInst.MouseLeave:Connect(function()
+		TweenService:Create(targetFrame, tweenInfoHover, { Size = originalSize }):Play()
+		local stroke = targetFrame:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			TweenService:Create(stroke, tweenInfoHover, { Transparency = 0.5 }):Play()
+		end
+	end)
+
+	interactiveInst.MouseButton1Down:Connect(function()
+		TweenService:Create(targetFrame, tweenInfoClick, {
+			Size = UDim2.new(
+				originalSize.X.Scale * scaleAmount,
+				originalSize.X.Offset * scaleAmount,
+				originalSize.Y.Scale * scaleAmount,
+				originalSize.Y.Offset * scaleAmount
+			),
+		}):Play()
+	end)
+
+	interactiveInst.MouseButton1Up:Connect(function()
+		TweenService:Create(targetFrame, tweenInfoRelease, { Size = originalSize }):Play()
+	end)
+end
+
+local function NormalizeArgs(first, ...)
+	if type(first) == "table" then
+		return first
+	end
+	return nil, first, ...
+end
+
+function StyxUI:CreateWindow(config)
+	config = config or {}
+	local currentThemeName = config.Theme or "Dark"
+	local footerTextParam = config.FooterText
+	local customTitle = config.Title or "Hub"
+	local fullTitleText = "<font color='#ffffff'><b>"
+		.. customTitle
+		.. "</b></font> <font color='#c0c0c0'>StyxUI</font>"
+
+	local Theme = StyxUI.Themes[currentThemeName] or StyxUI.Themes.Dark
+	StyxUI.CurrentTheme = Theme
+	local RegisteredElements = {}
+
+	local TopWidget = Instance.new("Frame")
+	TopWidget.Name = "StyxUI_TopWidget"
+	TopWidget.AnchorPoint = Vector2.new(0.5, 0)
+	TopWidget.Size = UDim2.fromOffset(0, 0)
+	TopWidget.Position = UDim2.new(0.5, 0, 0, 15)
+	TopWidget.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+	TopWidget.BackgroundTransparency = 1
+	TopWidget.ClipsDescendants = true
+	TopWidget.Active = true
+	TopWidget.Visible = false
+	TopWidget.Parent = MainGui
+	AddCorner(8, TopWidget)
+
+	local TopWidgetStroke = Instance.new("UIStroke")
+	TopWidgetStroke.Thickness = 5
+	TopWidgetStroke.Parent = TopWidget
+
+	local TopWidgetBg = Instance.new("ImageLabel")
+	TopWidgetBg.Size = UDim2.new(1, 0, 1, 0)
+	TopWidgetBg.BackgroundTransparency = 1
+	TopWidgetBg.Image = config.BackgroundImage or ""
+	TopWidgetBg.ImageTransparency = config.BackgroundImageTransparency or 0.5
+	TopWidgetBg.ScaleType = Enum.ScaleType.Crop
+	TopWidgetBg.ZIndex = 1
+	TopWidgetBg.Parent = TopWidget
+	AddCorner(8, TopWidgetBg)
+
+	local TopWidgetTxt = Instance.new("TextLabel")
+	TopWidgetTxt.Text = fullTitleText
+	TopWidgetTxt.RichText = true
+	TopWidgetTxt.TextSize = 13
+	TopWidgetTxt.Font = Enum.Font.BuilderSansBold
+	TopWidgetTxt.Position = UDim2.new(0, 10, 0, 0)
+	TopWidgetTxt.Size = UDim2.new(1, -40, 1, 0)
+	TopWidgetTxt.TextXAlignment = Enum.TextXAlignment.Left
+	TopWidgetTxt.BackgroundTransparency = 1
+	TopWidgetTxt.ZIndex = 2
+	TopWidgetTxt.Parent = TopWidget
+
+	local TopWidgetIconBtn = Instance.new("ImageButton")
+	TopWidgetIconBtn.Size = UDim2.fromOffset(18, 18)
+	TopWidgetIconBtn.Position = UDim2.new(1, -26, 0.5, -9)
+	TopWidgetIconBtn.BackgroundTransparency = 1
+	TopWidgetIconBtn.Image = StyxUI.Icons["arrow-up-right"] or "rbxassetid://10723407389"
+	TopWidgetIconBtn.ZIndex = 2
+	TopWidgetIconBtn.Parent = TopWidget
+
+	local TopWidgetClick = Instance.new("TextButton")
+	TopWidgetClick.Size = UDim2.new(1, -30, 1, 0)
+	TopWidgetClick.Position = UDim2.new(0, 0, 0, 0)
+	TopWidgetClick.BackgroundTransparency = 1
+	TopWidgetClick.Text = ""
+	TopWidgetClick.ZIndex = 2
+	TopWidgetClick.Parent = TopWidget
+
+	local MainFrame = Instance.new("Frame")
+	MainFrame.Name = "MainFrame"
+	MainFrame.Size = UDim2.fromOffset(480, 330)
+	MainFrame.Position = UDim2.fromScale(0.5, 0.5)
+	MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	MainFrame.BackgroundColor3 = Color3.fromRGB(13, 13, 15)
+	MainFrame.BackgroundTransparency = 0.15
+	MainFrame.ClipsDescendants = true
+	MainFrame.Parent = MainGui
+	AddCorner(10, MainFrame)
+	MainFrame.Size = UDim2.fromOffset(0, 0)
+	MainFrame.BackgroundTransparency = 1
+	MainFrame.Visible = false
+
+	local BackgroundImage = Instance.new("ImageLabel")
+	BackgroundImage.Name = "BackgroundImage"
+	BackgroundImage.Size = UDim2.new(1, 0, 1, 0)
+	BackgroundImage.Position = UDim2.new(0, 0, 0, 0)
+	BackgroundImage.BackgroundTransparency = 1
+	BackgroundImage.Image = config.BackgroundImage or ""
+	BackgroundImage.ImageTransparency = config.BackgroundImageTransparency or 0.5
+	BackgroundImage.ScaleType = Enum.ScaleType.Crop
+	BackgroundImage.ZIndex = 1
+	BackgroundImage.Parent = MainFrame
+	AddCorner(10, BackgroundImage)
+
+	local WindowStroke = Instance.new("UIStroke")
+	WindowStroke.Thickness = 5
+	WindowStroke.Transparency = 0.2
+	WindowStroke.Parent = MainFrame
+
+	local ThemeRipple = Instance.new("Frame")
+	ThemeRipple.Name = "ThemeRipple"
+	ThemeRipple.AnchorPoint = Vector2.new(0.5, 0.5)
+	ThemeRipple.Position = UDim2.fromScale(0.5, 0.5)
+	ThemeRipple.Size = UDim2.fromOffset(0, 0)
+	ThemeRipple.BackgroundTransparency = 0.65
+	ThemeRipple.ZIndex = 40
+	ThemeRipple.Visible = false
+	ThemeRipple.Parent = MainFrame
+	AddCorner(1000, ThemeRipple)
+
+	local ThemeRippleGrad = Instance.new("UIGradient")
+	ThemeRippleGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.4),
+		NumberSequenceKeypoint.new(0.5, 0.7),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	ThemeRippleGrad.Parent = ThemeRipple
+
+	local isDraggingWidget = false
+	local dragStartPos, startWidgetPos
+	local holdTween = nil
+	local holdCompleted = false
+	local HOLD_TIME = 3
+
+	local function ConvertWidgetPositionToOffset()
+		local absPos = TopWidget.AbsolutePosition
+		local absSize = TopWidget.AbsoluteSize
+		local anchorX = absSize.X * TopWidget.AnchorPoint.X
+		local anchorY = absSize.Y * TopWidget.AnchorPoint.Y
+		TopWidget.Position = UDim2.new(0, absPos.X + anchorX, 0, absPos.Y + anchorY)
+	end
+
+	TopWidgetIconBtn.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			holdCompleted = false
+			dragStartPos = input.Position
+
+			if holdTween then
+				holdTween:Cancel()
+			end
+
+			TopWidgetStroke.Transparency = 0.65
+			holdTween = TweenService:Create(TopWidgetStroke, TweenInfo.new(HOLD_TIME, Enum.EasingStyle.Linear), { Transparency = 0 })
+			holdTween:Play()
+			holdTween.Completed:Connect(function(playbackState)
+				if playbackState == Enum.PlaybackState.Completed then
+					holdCompleted = true
+					ConvertWidgetPositionToOffset()
+					startWidgetPos = TopWidget.Position
+					isDraggingWidget = true
+				end
+			end)
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if
+			isDraggingWidget
+			and (
+				input.UserInputType == Enum.UserInputType.MouseMovement
+				or input.UserInputType == Enum.UserInputType.Touch
+			)
+		then
+			local delta = input.Position - dragStartPos
+			TopWidget.Position = UDim2.new(
+				0,
+				startWidgetPos.X.Offset + delta.X,
+				0,
+				startWidgetPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			if holdTween then
+				holdTween:Cancel()
+				holdTween = nil
+			end
+			if not holdCompleted then
+				TweenService:Create(TopWidgetStroke, tweenInfoHover, { Transparency = 0.2 }):Play()
+			end
+			isDraggingWidget = false
+			holdCompleted = false
+		end
+	end)
+
+	local isUIAnimating = false
+
+	local function Minimize()
+		if isUIAnimating then
+			return
+		end
+		isUIAnimating = true
+		PlaySound(6041321736, 0.25)
+		local closeTween = TweenService:Create(
+			MainFrame,
+			TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+			{ Size = UDim2.fromOffset(0, 0), BackgroundTransparency = 1 }
+		)
+		closeTween:Play()
+		closeTween.Completed:Wait()
+		MainFrame.Visible = false
+
+		TopWidget.Position = UDim2.new(0.5, 0, 0, 15)
+		TopWidget.Size = UDim2.fromOffset(0, 0)
+		TopWidget.BackgroundTransparency = 1
+		TopWidget.Visible = true
+		local popTween = TweenService:Create(
+			TopWidget,
+			tweenInfoPop,
+			{ Size = UDim2.fromOffset(130, 32), BackgroundTransparency = 0.15 }
+		)
+		popTween:Play()
+		isUIAnimating = false
+	end
+
+	local function Restore()
+		if isUIAnimating then
+			return
+		end
+		isUIAnimating = true
+		PlaySound(6041321736, 0.25)
+		local hideTween = TweenService:Create(
+			TopWidget,
+			TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+			{ Size = UDim2.fromOffset(0, 0), BackgroundTransparency = 1 }
+		)
+		hideTween:Play()
+		hideTween.Completed:Wait()
+		TopWidget.Visible = false
+
+		MainFrame.Visible = true
+		local openTween = TweenService:Create(
+			MainFrame,
+			TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{ Size = UDim2.fromOffset(480, 330), BackgroundTransparency = 0.15 }
+		)
+		openTween:Play()
+		isUIAnimating = false
+	end
+
+	TopWidgetClick.MouseButton1Click:Connect(Restore)
+	AddButtonAnimation(TopWidgetClick, TopWidget, 0.97, UDim2.fromOffset(130, 32))
+
+	local Topbar = Instance.new("Frame")
+	Topbar.Size = UDim2.new(1, 0, 0, 36)
+	Topbar.BackgroundTransparency = 1
+	Topbar.ZIndex = 2
+	Topbar.Parent = MainFrame
+
+	local TitleLabel = Instance.new("TextLabel")
+	TitleLabel.Text = fullTitleText
+	TitleLabel.RichText = true
+	TitleLabel.TextSize = 13
+	TitleLabel.Font = Enum.Font.BuilderSansBold
+	TitleLabel.Position = UDim2.new(0, 14, 0, 0)
+	TitleLabel.Size = UDim2.new(0, 200, 1, 0)
+	TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	TitleLabel.BackgroundTransparency = 1
+	TitleLabel.ZIndex = 2
+	TitleLabel.Parent = Topbar
+
+	local TopControls = Instance.new("Frame")
+	TopControls.Size = UDim2.new(0, 85, 1, 0)
+	TopControls.Position = UDim2.new(1, -90, 0, 0)
+	TopControls.BackgroundTransparency = 1
+	TopControls.ZIndex = 2
+	TopControls.Parent = Topbar
+
+	local ThemeBtn = Instance.new("ImageButton")
+	ThemeBtn.Size = UDim2.fromOffset(18, 18)
+	ThemeBtn.Position = UDim2.new(0, 5, 0.5, -9)
+	ThemeBtn.BackgroundTransparency = 1
+	ThemeBtn.Image = StyxUI.Icons["settings"] or "rbxassetid://10734950309"
+	ThemeBtn.ZIndex = 2
+	ThemeBtn.Parent = TopControls
+
+	local MinimizeBtn = Instance.new("ImageButton")
+	MinimizeBtn.Size = UDim2.fromOffset(18, 18)
+	MinimizeBtn.Position = UDim2.new(0, 32, 0.5, -9)
+	MinimizeBtn.BackgroundTransparency = 1
+	MinimizeBtn.Image = StyxUI.Icons["minus"] or "rbxassetid://10747384394"
+	MinimizeBtn.ZIndex = 2
+	MinimizeBtn.Parent = TopControls
+
+	local CloseBtn = Instance.new("TextButton")
+	CloseBtn.Size = UDim2.fromOffset(18, 18)
+	CloseBtn.Position = UDim2.new(0, 59, 0.5, -9)
+	CloseBtn.BackgroundTransparency = 1
+	CloseBtn.Text = "X"
+	CloseBtn.TextSize = 13
+	CloseBtn.Font = Enum.Font.BuilderSansBold
+	CloseBtn.ZIndex = 2
+	CloseBtn.Parent = TopControls
+
+	AddButtonAnimation(ThemeBtn, ThemeBtn, 0.85)
+	AddButtonAnimation(MinimizeBtn, MinimizeBtn, 0.85)
+	AddButtonAnimation(CloseBtn, CloseBtn, 0.85)
+
+	MinimizeBtn.MouseButton1Click:Connect(Minimize)
+
+	local ConfirmOverlay = Instance.new("Frame")
+	ConfirmOverlay.Size = UDim2.new(1, 0, 1, 0)
+	ConfirmOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	ConfirmOverlay.BackgroundTransparency = 0.5
+	ConfirmOverlay.Visible = false
+	ConfirmOverlay.ZIndex = 50
+	ConfirmOverlay.Parent = MainFrame
+
+	local ConfirmBox = Instance.new("Frame")
+	ConfirmBox.Size = UDim2.fromOffset(260, 120)
+	ConfirmBox.Position = UDim2.fromScale(0.5, 0.5)
+	ConfirmBox.AnchorPoint = Vector2.new(0.5, 0.5)
+	ConfirmBox.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+	ConfirmBox.ZIndex = 51
+	ConfirmBox.Parent = ConfirmOverlay
+	AddCorner(8, ConfirmBox)
+
+	local ConfirmStroke = Instance.new("UIStroke")
+	ConfirmStroke.Thickness = 5
+	ConfirmStroke.Parent = ConfirmBox
+
+	local ConfirmTxt = Instance.new("TextLabel")
+	ConfirmTxt.Text = "<b>Do you want to close the script?</b>"
+	ConfirmTxt.RichText = true
+	ConfirmTxt.TextSize = 13
+	ConfirmTxt.Font = Enum.Font.BuilderSansBold
+	ConfirmTxt.TextColor3 = Color3.fromRGB(240, 240, 240)
+	ConfirmTxt.Position = UDim2.new(0, 0, 0, 15)
+	ConfirmTxt.Size = UDim2.new(1, 0, 0, 30)
+	ConfirmTxt.BackgroundTransparency = 1
+	ConfirmTxt.ZIndex = 52
+	ConfirmTxt.Parent = ConfirmBox
+
+	local YesBtn = Instance.new("TextButton")
+	YesBtn.Size = UDim2.fromOffset(90, 28)
+	YesBtn.Position = UDim2.new(0.5, -95, 1, -40)
+	YesBtn.BackgroundColor3 = Color3.fromRGB(185, 28, 28)
+	YesBtn.Text = "YES"
+	YesBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	YesBtn.Font = Enum.Font.BuilderSansBold
+	YesBtn.TextSize = 12
+	YesBtn.ZIndex = 52
+	YesBtn.Parent = ConfirmBox
+	AddCorner(6, YesBtn)
+
+	local NoBtn = Instance.new("TextButton")
+	NoBtn.Size = UDim2.fromOffset(90, 28)
+	NoBtn.Position = UDim2.new(0.5, 5, 1, -40)
+	NoBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+	NoBtn.Text = "NO"
+	NoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	NoBtn.Font = Enum.Font.BuilderSansBold
+	NoBtn.TextSize = 12
+	NoBtn.ZIndex = 52
+	NoBtn.Parent = ConfirmBox
+	AddCorner(6, NoBtn)
+
+	AddButtonAnimation(YesBtn, YesBtn, 0.93)
+	AddButtonAnimation(NoBtn, NoBtn, 0.93)
+
+	CloseBtn.MouseButton1Click:Connect(function()
+		PlaySound(6041321736, 0.2)
+		ConfirmOverlay.Visible = true
+	end)
+
+	NoBtn.MouseButton1Click:Connect(function()
+		PlaySound(6041321736, 0.2)
+		ConfirmOverlay.Visible = false
+	end)
+
+	YesBtn.MouseButton1Click:Connect(function()
+		PlaySound(6041321736, 0.2)
+		MainGui:Destroy()
+	end)
+
+	local ThemePopup = Instance.new("Frame")
+	ThemePopup.Size = UDim2.fromOffset(130, 160)
+	ThemePopup.Position = UDim2.new(1, -140, 0, 36)
+	ThemePopup.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+	ThemePopup.Visible = false
+	ThemePopup.ZIndex = 30
+	ThemePopup.Parent = MainFrame
+	AddCorner(8, ThemePopup)
+
+	local PopupStroke = Instance.new("UIStroke")
+	PopupStroke.Thickness = 5
+	PopupStroke.Parent = ThemePopup
+
+	local ThemeList = Instance.new("ScrollingFrame")
+	ThemeList.Size = UDim2.new(1, -8, 1, -8)
+	ThemeList.Position = UDim2.new(0, 4, 0, 4)
+	ThemeList.BackgroundTransparency = 1
+	ThemeList.BorderSizePixel = 0
+	ThemeList.ScrollBarThickness = 2
+	ThemeList.CanvasSize = UDim2.new(0, 0, 0, 0)
+	ThemeList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	ThemeList.ZIndex = 31
+	ThemeList.Parent = ThemePopup
+
+	local PopupLayout = Instance.new("UIListLayout")
+	PopupLayout.Padding = UDim.new(0, 3)
+	PopupLayout.Parent = ThemeList
+
+	ThemeBtn.MouseButton1Click:Connect(function()
+		PlaySound(6041321736, 0.2)
+		ThemePopup.Visible = not ThemePopup.Visible
+	end)
+
+	local Sidebar = Instance.new("Frame")
+	Sidebar.Size = UDim2.new(0, 140, 1, -66)
+	Sidebar.Position = UDim2.new(0, 0, 0, 36)
+	Sidebar.BackgroundTransparency = 1
+	Sidebar.ZIndex = 2
+	Sidebar.Parent = MainFrame
+
+	local TabContainer = Instance.new("ScrollingFrame")
+	TabContainer.Size = UDim2.new(1, -10, 1, -10)
+	TabContainer.Position = UDim2.new(0, 5, 0, 5)
+	TabContainer.BackgroundTransparency = 1
+	TabContainer.BorderSizePixel = 0
+	TabContainer.ScrollBarThickness = 0
+	TabContainer.ZIndex = 2
+	TabContainer.Parent = Sidebar
+
+	local TabList = Instance.new("UIListLayout")
+	TabList.Padding = UDim.new(0, 3)
+	TabList.Parent = TabContainer
+
+	local Divider = Instance.new("Frame")
+	Divider.Size = UDim2.new(0, 1, 1, -74)
+	Divider.Position = UDim2.new(0, 140, 0, 40)
+	Divider.BackgroundTransparency = 0.5
+	Divider.ZIndex = 2
+	Divider.Parent = MainFrame
+
+	local HDivider = Instance.new("Frame")
+	HDivider.Size = UDim2.new(1, 0, 0, 1)
+	HDivider.Position = UDim2.new(0, 0, 1, -30)
+	HDivider.BackgroundTransparency = 0.5
+	HDivider.ZIndex = 2
+	HDivider.Parent = MainFrame
+
+	local Footer = Instance.new("TextLabel")
+	Footer.Size = UDim2.new(1, 0, 0, 30)
+	Footer.Position = UDim2.new(0, 0, 1, -30)
+	Footer.BackgroundTransparency = 1
+	Footer.Text = footerTextParam and (" " .. footerTextParam) or ""
+	Footer.TextColor3 = Color3.fromRGB(150, 150, 150)
+	Footer.TextSize = 12
+	Footer.Font = Enum.Font.BuilderSansMedium
+	Footer.TextXAlignment = Enum.TextXAlignment.Left
+	Footer.ZIndex = 2
+	Footer.Parent = MainFrame
+
+	local ContentArea = Instance.new("Frame")
+	ContentArea.Size = UDim2.new(1, -141, 1, -66)
+	ContentArea.Position = UDim2.new(0, 141, 0, 36)
+	ContentArea.BackgroundTransparency = 1
+	ContentArea.ZIndex = 2
+	ContentArea.Parent = MainFrame
+
+	local function UpdateTheme(newThemeName, animate)
+		local T = StyxUI.Themes[newThemeName] or StyxUI.Themes.Dark
+		StyxUI.CurrentTheme = T
+
+		local function ApplyAllColors()
+			ApplyThemeValue(WindowStroke, "Color", T.Outline or T.Accent)
+			ApplyThemeValue(TopWidgetStroke, "Color", T.Outline or T.Accent)
+			ApplyThemeValue(ConfirmStroke, "Color", T.Outline or T.Accent)
+			ApplyThemeValue(Divider, "BackgroundColor3", T.Outline or T.Accent)
+			ApplyThemeValue(HDivider, "BackgroundColor3", T.Outline or T.Accent)
+			ApplyThemeValue(PopupStroke, "Color", T.Outline or T.Accent)
+			ApplyThemeValue(CloseBtn, "TextColor3", T.Text)
+			ThemeBtn.ImageColor3 = T.Icon or T.Text
+			MinimizeBtn.ImageColor3 = T.Icon or T.Text
+			TopWidgetIconBtn.ImageColor3 = T.Icon or T.Text
+
+			if not config.BackgroundImage and T.Background then
+				BackgroundImage.Image = T.Background
+				TopWidgetBg.Image = T.Background
+			end
+
+			for _, item in ipairs(RegisteredElements) do
+				if item.Type == "TabBtn" then
+					if item.Active then
+						ApplyThemeValue(item.Label, "TextColor3", T.Text)
+						ApplyThemeValue(item.Instance, "BackgroundColor3", T.Accent)
+						if item.Icon then
+							item.Icon.ImageColor3 = T.Icon or T.Text
+						end
+					else
+						ApplyThemeValue(item.Label, "TextColor3", T.Placeholder)
+						item.Instance.BackgroundTransparency = 1
+						if item.Icon then
+							item.Icon.ImageColor3 = T.Icon or T.Placeholder
+						end
+					end
+				elseif item.Type == "Element" then
+					ApplyThemeValue(item.Instance, "BackgroundColor3", T.ElementBackground)
+					if item.Stroke then
+						ApplyThemeValue(item.Stroke, "Color", T.Outline or T.Accent)
+					end
+					if item.Label then
+						ApplyThemeValue(item.Label, "TextColor3", T.Text)
+					end
+					if item.Icon then
+						item.Icon.ImageColor3 = T.Icon or T.Text
+					end
+					if item.SubColor then
+						ApplyThemeValue(item.SubColor, "BackgroundColor3", T.Toggle or T.Slider or T.Accent)
+					end
+				elseif item.Type == "Section" then
+					ApplyThemeValue(item.Label, "TextColor3", T.Placeholder)
+				end
+			end
+		end
+
+		if animate then
+			ThemeRipple.Size = UDim2.fromOffset(0, 0)
+			ThemeRipple.BackgroundTransparency = 0.65
+			ApplyThemeValue(ThemeRipple, "BackgroundColor3", T.Outline or T.Accent)
+
+			if type(T.Outline) == "table" and T.Outline.Type == "Gradient" then
+				ThemeRippleGrad.Color = T.Outline.ColorSequence
+				ThemeRippleGrad.Rotation = T.Outline.Rotation
+			elseif type(T.Accent) == "table" and T.Accent.Type == "Gradient" then
+				ThemeRippleGrad.Color = T.Accent.ColorSequence
+				ThemeRippleGrad.Rotation = T.Accent.Rotation
+			else
+				local baseCol = T.Outline or T.Accent or Color3.fromRGB(255, 255, 255)
+				ThemeRippleGrad.Color = ColorSequence.new(baseCol)
+			end
+
+			ThemeRipple.Visible = true
+			local expandTween = TweenService:Create(
+				ThemeRipple,
+				TweenInfo.new(0.65, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+				{ Size = UDim2.fromOffset(950, 950) }
+			)
+			expandTween:Play()
+			expandTween.Completed:Connect(function()
+				ApplyAllColors()
+				local fadeTween = TweenService:Create(
+					ThemeRipple,
+					TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+					{ BackgroundTransparency = 1 }
+				)
+				fadeTween:Play()
+				fadeTween.Completed:Connect(function()
+					ThemeRipple.Visible = false
+				end)
+			end)
+		else
+			ApplyAllColors()
+		end
+	end
+
+	for tName, _ in pairs(StyxUI.Themes) do
+		local TBtn = Instance.new("TextButton")
+		TBtn.Size = UDim2.new(1, 0, 0, 22)
+		TBtn.BackgroundTransparency = 0.7
+		TBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+		TBtn.Text = tName
+		TBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+		TBtn.TextSize = 11
+		TBtn.Font = Enum.Font.BuilderSansMedium
+		TBtn.ZIndex = 32
+		TBtn.Parent = ThemeList
+		AddCorner(4, TBtn)
+		AddButtonAnimation(TBtn, TBtn, 0.95)
+
+		TBtn.MouseButton1Click:Connect(function()
+			PlaySound(6041321736, 0.2)
+			UpdateTheme(tName, true)
+			ThemePopup.Visible = false
+		end)
+	end
+
+	local function EnableDrag(dragFrame, moveFrame)
+		local dragging, dragStart, startPos
+		dragFrame.InputBegan:Connect(function(input)
+			if
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+			then
+				dragging = true
+				dragStart = input.Position
+				startPos = moveFrame.Position
+			end
+		end)
+
+		UserInputService.InputChanged:Connect(function(input)
+			if
+				dragging
+				and (
+					input.UserInputType == Enum.UserInputType.MouseMovement
+					or input.UserInputType == Enum.UserInputType.Touch
+				)
+			then
+				local delta = input.Position - dragStart
+				moveFrame.Position = UDim2.new(
+					startPos.X.Scale,
+					startPos.X.Offset + delta.X,
+					startPos.Y.Scale,
+					startPos.Y.Offset + delta.Y
+				)
+			end
+		end)
+
+		UserInputService.InputEnded:Connect(function(input)
+			if
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+			then
+				dragging = false
+			end
+		end)
+	end
+
+	EnableDrag(Topbar, MainFrame)
+
+	local WindowObj = { Tabs = {} }
+
+	function WindowObj:SetBackgroundImage(imageId, transparency)
+		BackgroundImage.Image = imageId or ""
+		TopWidgetBg.Image = imageId or ""
+		if transparency then
+			BackgroundImage.ImageTransparency = transparency
+			TopWidgetBg.ImageTransparency = transparency
+		end
+	end
+
+	function WindowObj:Minimize()
+		Minimize()
+	end
+
+	function WindowObj:Restore()
+		Restore()
+	end
+
+	function WindowObj:Tab(configTab, maybeIcon)
+		local cfg = NormalizeArgs(configTab)
+		local tabName, tabIconKey
+
+		if cfg then
+			tabName = cfg.Title
+			tabIconKey = cfg.Icon
+		else
+			tabName = configTab
+			tabIconKey = maybeIcon
+		end
+
+		local resolvedIcon = nil
+		if tabIconKey then
+			resolvedIcon = StyxUI.Icons[tabIconKey] or tabIconKey
+		end
+
+		local TabBtn = Instance.new("TextButton")
+		TabBtn.Size = UDim2.new(1, 0, 0, 28)
+		TabBtn.BackgroundTransparency = 1
+		TabBtn.Text = ""
+		TabBtn.ZIndex = 2
+		TabBtn.Parent = TabContainer
+		AddCorner(6, TabBtn)
+		AddButtonAnimation(TabBtn, TabBtn, 0.96)
+
+		local TabIconImg = nil
+		if resolvedIcon then
+			TabIconImg = Instance.new("ImageLabel")
+			TabIconImg.Size = UDim2.fromOffset(16, 16)
+			TabIconImg.Position = UDim2.new(0, 8, 0.5, -8)
+			TabIconImg.BackgroundTransparency = 1
+			TabIconImg.Image = resolvedIcon
+			TabIconImg.ZIndex = 2
+			TabIconImg.Parent = TabBtn
+		end
+
+		local TabLabel = Instance.new("TextLabel")
+		TabLabel.Text = tabName
+		TabLabel.TextSize = 12
+		TabLabel.Font = Enum.Font.BuilderSansMedium
+		TabLabel.Position = resolvedIcon and UDim2.new(0, 30, 0, 0) or UDim2.new(0, 10, 0, 0)
+		TabLabel.Size = resolvedIcon and UDim2.new(1, -35, 1, 0) or UDim2.new(1, -15, 1, 0)
+		TabLabel.TextXAlignment = Enum.TextXAlignment.Left
+		TabLabel.BackgroundTransparency = 1
+		TabLabel.ZIndex = 2
+		TabLabel.Parent = TabBtn
+
+		local TabReg = { Type = "TabBtn", Instance = TabBtn, Label = TabLabel, Icon = TabIconImg, Active = false }
+		table.insert(RegisteredElements, TabReg)
+
+		local Page = Instance.new("ScrollingFrame")
+		Page.Size = UDim2.new(1, -16, 1, -16)
+		Page.Position = UDim2.new(0, 8, 0, 8)
+		Page.BackgroundTransparency = 1
+		Page.BorderSizePixel = 0
+		Page.Visible = false
+		Page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		Page.ScrollBarThickness = 2
+		Page.ZIndex = 2
+		Page.Parent = ContentArea
+
+		local PageList = Instance.new("UIListLayout")
+		PageList.Padding = UDim.new(0, 5)
+		PageList.Parent = Page
+
+		local function Select()
+			PlaySound(6041321736, 0.2)
+			for _, t in ipairs(WindowObj.Tabs) do
+				t.Page.Visible = false
+				t.Reg.Active = false
+				t.Btn.BackgroundTransparency = 1
+			end
+			Page.Visible = true
+			TabReg.Active = true
+			TabBtn.BackgroundTransparency = 0.8
+			UpdateTheme(StyxUI.CurrentTheme.Name, false)
+		end
+
+		TabBtn.MouseButton1Click:Connect(Select)
+		table.insert(WindowObj.Tabs, { Page = Page, Btn = TabBtn, Reg = TabReg })
+
+		if #WindowObj.Tabs == 1 then
+			Select()
+		end
+
+		local TabObj = {}
+
+		local function RegisterRow(height)
+			local Frame = Instance.new("Frame")
+			Frame.Size = UDim2.new(1, 0, 0, height)
+			Frame.ZIndex = 2
+			Frame.Parent = Page
+			AddCorner(6, Frame)
+
+			local Stroke = Instance.new("UIStroke")
+			Stroke.Thickness = 5
+			Stroke.Transparency = 0.5
+			Stroke.Parent = Frame
+
+			return Frame, Stroke
+		end
+
+		function TabObj:Section(title)
+			local Frame = Instance.new("Frame")
+			Frame.Size = UDim2.new(1, 0, 0, 22)
+			Frame.BackgroundTransparency = 1
+			Frame.ZIndex = 2
+			Frame.Parent = Page
+
+			local Txt = Instance.new("TextLabel")
+			Txt.Text = string.upper(title or "Section")
+			Txt.TextSize = 11
+			Txt.Font = Enum.Font.BuilderSansBold
+			Txt.Position = UDim2.new(0, 2, 0, 6)
+			Txt.Size = UDim2.new(1, -4, 0, 14)
+			Txt.TextXAlignment = Enum.TextXAlignment.Left
+			Txt.BackgroundTransparency = 1
+			Txt.ZIndex = 2
+			Txt.Parent = Frame
+
+			table.insert(RegisteredElements, { Type = "Section", Label = Txt })
+			UpdateTheme(StyxUI.CurrentTheme.Name, false)
+			return Frame
+		end
+
+		function TabObj:Label(text)
+			local Frame, Stroke = RegisterRow(28)
+			Stroke.Transparency = 1
+
+			local Txt = Instance.new("TextLabel")
+			Txt.Text = text or ""
+			Txt.TextSize = 12
+			Txt.Font = Enum.Font.BuilderSansMedium
+			Txt.Position = UDim2.new(0, 10, 0, 0)
+			Txt.Size = UDim2.new(1, -20, 1, 0)
+			Txt.TextXAlignment = Enum.TextXAlignment.Left
+			Txt.BackgroundTransparency = 1
+			Txt.ZIndex = 2
+			Txt.Parent = Frame
+
+			table.insert(RegisteredElements, { Type = "Element", Instance = Frame, Stroke = Stroke, Label = Txt })
+			UpdateTheme(StyxUI.CurrentTheme.Name, false)
+
+			local Control = {}
+			function Control:Set(newText)
+				Txt.Text = newText
+			end
+			return Control
+		end
+
+		function TabObj:Button(btnConfig, maybeIcon, maybeCallback)
+			local cfg = NormalizeArgs(btnConfig)
+			local title, btnIconKey, callback
+
+			if cfg then
+				title = cfg.Title
+				btnIconKey = cfg.Icon
+				callback = cfg.Callback or function() end
+			else
+				title = btnConfig
+				if type(maybeIcon) == "function" then
+					callback = maybeIcon
+				else
+					btnIconKey = maybeIcon
+					callback = maybeCallback or function() end
+				end
+				callback = callback or function() end
+			end
+
+			local resolvedBtnIcon = nil
+			if btnIconKey then
+				resolvedBtnIcon = StyxUI.Icons[btnIconKey] or btnIconKey
+			end
+
+			local Frame, Stroke = RegisterRow(32)
+
+			local BtnIconImg = nil
+			if resolvedBtnIcon then
+				BtnIconImg = Instance.new("ImageLabel")
+				BtnIconImg.Size = UDim2.fromOffset(16, 16)
+				BtnIconImg.Position = UDim2.new(0, 10, 0.5, -8)
+				BtnIconImg.BackgroundTransparency = 1
+				BtnIconImg.Image = resolvedBtnIcon
+				BtnIconImg.ZIndex = 2
+				BtnIconImg.Parent = Frame
+			end
+
+			local Txt = Instance.new("TextLabel")
+			Txt.Text = title
+			Txt.TextSize = 12
+			Txt.Font = Enum.Font.BuilderSansMedium
+			Txt.Position = resolvedBtnIcon and UDim2.new(0, 32, 0, 0) or UDim2.new(0, 10, 0, 0)
+			Txt.Size = resolvedBtnIcon and UDim2.new(1, -42, 1, 0) or UDim2.new(1, -20, 1, 0)
+			Txt.TextXAlignment = Enum.TextXAlignment.Left
+			Txt.BackgroundTransparency = 1
+			Txt.ZIndex = 2
+			Txt.Parent = Frame
+
+			table.insert(RegisteredElements, {
+				Type = "Element",
+				Instance = Frame,
+				Stroke = Stroke,
+				Label = Txt,
+				Icon = BtnIconImg,
+			})
+
+			local Clicker = Instance.new("TextButton")
+			Clicker.Size = UDim2.new(1, 0, 1, 0)
+			Clicker.BackgroundTransparency = 1
+			Clicker.Text = ""
+			Clicker.ZIndex = 2
+			Clicker.Parent = Frame
+
+			AddButtonAnimation(Clicker, Frame, 0.95)
+
+			Clicker.MouseButton1Click:Connect(function()
+				PlaySound(6041321736, 0.25)
+				callback()
+			end)
+
+			UpdateTheme(StyxUI.CurrentTheme.Name, false)
+			return Frame
+		end
+
+		function TabObj:Toggle(togConfig, maybeDefault, maybeCallback)
+			local cfg = NormalizeArgs(togConfig)
+			local title, val, callback
+
+			if cfg then
+				title = cfg.Title or "Toggle"
+				val = cfg.Value or false
+				callback = cfg.Callback or function() end
+			else
+				title = togConfig or "Toggle"
+				if type(maybeDefault) == "function" then
+					callback = maybeDefault
+					val = false
+				else
+					val = maybeDefault or false
+					callback = maybeCallback or function() end
+				end
+			end
+
+			local Frame, Stroke = RegisterRow(32)
+
+			local Txt = Instance.new("TextLabel")
+			Txt.Text = title
+			Txt.TextSize = 12
+			Txt.Font = Enum.Font.BuilderSansMedium
+			Txt.Position = UDim2.new(0, 10, 0, 0)
+			Txt.Size = UDim2.new(1, -50, 1, 0)
+			Txt.TextXAlignment = Enum.TextXAlignment.Left
+			Txt.BackgroundTransparency = 1
+			Txt.ZIndex = 2
+			Txt.Parent = Frame
+
+			local Switch = Instance.new("Frame")
+			Switch.Size = UDim2.fromOffset(32, 16)
+			Switch.Position = UDim2.new(1, -40, 0.5, -8)
+			Switch.ZIndex = 2
+			Switch.Parent = Frame
+			AddCorner(8, Switch)
+
+			local Circle = Instance.new("Frame")
+			Circle.Size = UDim2.fromOffset(12, 12)
+			Circle.Position = val and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)
+			Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			Circle.ZIndex = 3
+			Circle.Parent = Switch
+			AddCorner(6, Circle)
+
+			table.insert(RegisteredElements, { Type = "Element", Instance = Frame, Stroke = Stroke, Label = Txt, SubColor = Switch })
+
+			local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+			local activeColor = StyxUI.CurrentTheme.Toggle or Color3.fromRGB(51, 199, 89)
+			local inactiveColor = Color3.fromRGB(40, 40, 45)
+			Switch.BackgroundColor3 = val and activeColor or inactiveColor
+
+			local function SetState(newVal, fireCallback)
+				val = newVal
+				local targetPos = val and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)
+				TweenService:Create(Circle, tweenInfo, { Position = targetPos }):Play()
+
+				local targetColor = val and (StyxUI.CurrentTheme.Toggle or activeColor) or inactiveColor
+				TweenService:Create(Switch, tweenInfo, { BackgroundColor3 = targetColor }):Play()
+
+				local squishTween = TweenService:Create(
+					Circle,
+					TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+					{ Size = UDim2.fromOffset(14, 10) }
+				)
+				squishTween:Play()
+				squishTween.Completed:Connect(function()
+					TweenService:Create(
+						Circle,
+						TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+						{ Size = UDim2.fromOffset(12, 12) }
+					):Play()
+				end)
+
+				if fireCallback then
+					pcall(callback, val)
+				end
+			end
+
+			local Clicker = Instance.new("TextButton")
+			Clicker.Size = UDim2.new(1, 0, 1, 0)
+			Clicker.BackgroundTransparency = 1
+			Clicker.Text = ""
+			Clicker.ZIndex = 2
+			Clicker.Parent = Frame
+
+			AddButtonAnimation(Clicker, Frame, 0.95)
+
+			Clicker.MouseButton1Click:Connect(function()
+				PlaySound(6041321736, 0.25)
+				SetState(not val, true)
+			end)
+
+			UpdateTheme(StyxUI.CurrentTheme.Name, false)
+
+			local Control = {}
+			function Control:Set(newVal)
+				SetState(newVal, false)
+			end
+			function Control:Get()
+				return val
+			end
+			return Control
+		end
+
+		function TabObj:Slider(sldConfig, maybeMin, maybeMax, maybeDefault, maybeCallback)
+			local cfg = NormalizeArgs(sldConfig)
+			local title, min, max, val, callback
+
+			if cfg then
+				title = cfg.Title or "Slider"
+				min = cfg.Min or 0
+				max = cfg.Max or 100
+				val = cfg.Value or min
+				callback = cfg.Callback or function() end
+			else
+				title = sldConfig or "Slider"
+				min = maybeMin or 0
+				max = maybeMax or 100
+				val = maybeDefault or min
+				callback = maybeCallback or function() end
+			end
+
+			local Frame, Stroke = RegisterRow(42)
+
+			local Txt = Instance.new("TextLabel")
+			Txt.Text = title
+			Txt.TextSize = 12
+			Txt.Font = Enum.Font.BuilderSansMedium
+			Txt.Position = UDim2.new(0, 10, 0, 4)
+			Txt.Size = UDim2.new(1, -60, 0, 16)
+			Txt.TextXAlignment = Enum.TextXAlignment.Left
+			Txt.BackgroundTransparency = 1
+			Txt.ZIndex = 2
+			Txt.Parent = Frame
+
+			local ValTxt = Instance.new("TextLabel")
+			ValTxt.Text = tostring(val)
+			ValTxt.TextSize = 11
+			ValTxt.Font = Enum.Font.BuilderSans
+			ValTxt.Position = UDim2.new(1, -45, 0, 4)
+			ValTxt.Size = UDim2.new(0, 35, 0, 16)
+			ValTxt.TextXAlignment = Enum.TextXAlignment.Right
+			ValTxt.BackgroundTransparency = 1
+			ValTxt.ZIndex = 2
+			ValTxt.Parent = Frame
+
+			local Track = Instance.new("Frame")
+			Track.Size = UDim2.new(1, -20, 0, 5)
+			Track.Position = UDim2.new(0, 10, 0, 26)
+			Track.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+			Track.ZIndex = 2
+			Track.Parent = Frame
+			AddCorner(3, Track)
+
+			local Fill = Instance.new("Frame")
+			Fill.Size = UDim2.new((val - min) / (max - min), 0, 1, 0)
+			Fill.ZIndex = 2
+			Fill.Parent = Track
+			AddCorner(3, Fill)
+
+			table.insert(RegisteredElements, { Type = "Element", Instance = Frame, Stroke = Stroke, Label = Txt, SubColor = Fill })
+
+			local isDragging = false
+			local lastPlayedVal = val
+
+			local function SetState(newVal, fireCallback)
+				val = math.clamp(newVal, min, max)
+				local pos = (val - min) / (max - min)
+				Fill.Size = UDim2.new(pos, 0, 1, 0)
+				ValTxt.Text = tostring(val)
+				if fireCallback then
+					pcall(callback, val)
+				end
+			end
+
+			local function Update(input)
+				local pos = math.clamp((input.Position.X - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
+				local newVal = math.floor(min + ((max - min) * pos))
+				SetState(newVal, true)
+				if math.abs(newVal - lastPlayedVal) >= ((max - min) * 0.05) then
+					PlaySound(6041321736, 0.15)
+					lastPlayedVal = newVal
+				end
+			end
+
+			Track.InputBegan:Connect(function(input)
+				if
+					input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch
+				then
+					isDragging = true
+					PlaySound(6041321736, 0.2)
+					Update(input)
+				end
+			end)
+
+			UserInputService.InputChanged:Connect(function(input)
+				if
+					isDragging
+					and (
+						input.UserInputType == Enum.UserInputType.MouseMovement
+						or input.UserInputType == Enum.UserInputType.Touch
+					)
+				then
+					Update(input)
+				end
+			end)
+
+			UserInputService.InputEnded:Connect(function(input)
+				if
+					input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch
+				then
+					isDragging = false
+				end
+			end)
+
+			UpdateTheme(StyxUI.CurrentTheme.Name, false)
+
+			local Control = {}
+			function Control:Set(newVal)
+				SetState(newVal, false)
+			end
+			function Control:Get()
+				return val
+			end
+			return Control
+		end
+
+		function TabObj:Input(inpConfig, maybePlaceholder, maybeCallback)
+			local cfg = NormalizeArgs(inpConfig)
+			local title, placeholder, value, callback
+
+			if cfg then
+				title = cfg.Title or "Input"
+				placeholder = cfg.Placeholder or "Type here..."
+				value = cfg.Value or ""
+				callback = cfg.Callback or function() end
+			else
+				title = inpConfig or "Input"
+				if type(maybePlaceholder) == "function" then
+					callback = maybePlaceholder
+					placeholder = "Type here..."
+				else
+					placeholder = maybePlaceholder or "Type here..."
+					callback = maybeCallback or function() end
+				end
+				value = ""
+			end
+
+			local Frame, Stroke = RegisterRow(42)
+
+			local Txt = Instance.new("TextLabel")
+			Txt.Text = title
+			Txt.TextSize = 12
+			Txt.Font = Enum.Font.BuilderSansMedium
+			Txt.Position = UDim2.new(0, 10, 0, 0)
+			Txt.Size = UDim2.new(1, -120, 1, 0)
+			Txt.TextXAlignment = Enum.TextXAlignment.Left
+			Txt.BackgroundTransparency = 1
+			Txt.ZIndex = 2
+			Txt.Parent = Frame
+
+			local TextBoxFrame = Instance.new("Frame")
+			TextBoxFrame.Size = UDim2.fromOffset(100, 26)
+			TextBoxFrame.Position = UDim2.new(1, -110, 0.5, -13)
+			TextBoxFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 27)
+			TextBoxFrame.ZIndex = 2
+			TextBoxFrame.Parent = Frame
+			AddCorner(4, TextBoxFrame)
+
+			local BoxStroke = Instance.new("UIStroke")
+			BoxStroke.Thickness = 1.5
+			BoxStroke.Transparency = 0.5
+			BoxStroke.Parent = TextBoxFrame
+
+			local TextBox = Instance.new("TextBox")
+			TextBox.Size = UDim2.new(1, -10, 1, 0)
+			TextBox.Position = UDim2.new(0, 5, 0, 0)
+			TextBox.BackgroundTransparency = 1
+			TextBox.Text = value
+			TextBox.PlaceholderText = placeholder
+			TextBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+			TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+			TextBox.TextSize = 11
+			TextBox.Font = Enum.Font.BuilderSansMedium
+			TextBox.ClearTextOnFocus = false
+			TextBox.ZIndex = 2
+			TextBox.Parent = TextBoxFrame
+
+			TextBox.Focused:Connect(function()
+				PlaySound(6041321736, 0.2)
+			end)
+
+			TextBox.FocusLost:Connect(function(enterPressed)
+				PlaySound(6041321736, 0.25)
+				pcall(callback, TextBox.Text, enterPressed)
+			end)
+
+			table.insert(RegisteredElements, { Type = "Element", Instance = Frame, Stroke = Stroke, Label = Txt })
+			UpdateTheme(StyxUI.CurrentTheme.Name, false)
+
+			local Control = {}
+			function Control:Set(newText)
+				TextBox.Text = newText
+			end
+			function Control:Get()
+				return TextBox.Text
+			end
+			return Control
+		end
+
+		function TabObj:Colorpicker(defaultColor, callback)
+			defaultColor = defaultColor or Color3.fromRGB(255, 255, 255)
+			callback = callback or function() end
+
+			local Frame, Stroke = RegisterRow(36)
+
+			local Txt = Instance.new("TextLabel")
+			Txt.Text = "Color Picker"
+			Txt.TextSize = 12
+			Txt.Font = Enum.Font.BuilderSansMedium
+			Txt.Position = UDim2.new(0, 10, 0, 0)
+			Txt.Size = UDim2.new(1, -60, 1, 0)
+			Txt.TextXAlignment = Enum.TextXAlignment.Left
+			Txt.BackgroundTransparency = 1
+			Txt.ZIndex = 2
+			Txt.Parent = Frame
+
+			local ColourDisplay = Instance.new("Frame")
+			ColourDisplay.Size = UDim2.fromOffset(28, 18)
+			ColourDisplay.Position = UDim2.new(1, -38, 0.5, -9)
+			ColourDisplay.BackgroundColor3 = defaultColor
+			ColourDisplay.ZIndex = 2
+			ColourDisplay.Parent = Frame
+			AddCorner(4, ColourDisplay)
+
+			local DisplayStroke = Instance.new("UIStroke")
+			DisplayStroke.Thickness = 1.5
+			DisplayStroke.Transparency = 0.3
+			DisplayStroke.Parent = ColourDisplay
+
+			local Clicker = Instance.new("TextButton")
+			Clicker.Size = UDim2.new(1, 0, 1, 0)
+			Clicker.BackgroundTransparency = 1
+			Clicker.Text = ""
+			Clicker.ZIndex = 2
+			Clicker.Parent = Frame
+
+			local CPOverlay = Instance.new("Frame")
+			CPOverlay.Size = UDim2.new(1, 0, 1, 0)
+			CPOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+			CPOverlay.BackgroundTransparency = 0.4
+			CPOverlay.Visible = false
+			CPOverlay.ZIndex = 60
+			CPOverlay.Parent = MainFrame
+			AddCorner(10, CPOverlay)
+
+			local CPBox = Instance.new("Frame")
+			CPBox.Size = UDim2.fromOffset(220, 205)
+			CPBox.Position = UDim2.fromScale(0.5, 0.5)
+			CPBox.AnchorPoint = Vector2.new(0.5, 0.5)
+			CPBox.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+			CPBox.ZIndex = 61
+			CPBox.Parent = CPOverlay
+			AddCorner(8, CPBox)
+
+			local CPBoxStroke = Instance.new("UIStroke")
+			CPBoxStroke.Thickness = 5
+			CPBoxStroke.Parent = CPBox
+
+			local HexTxt = Instance.new("TextLabel")
+			HexTxt.Size = UDim2.new(1, -20, 0, 28)
+			HexTxt.Position = UDim2.new(0, 10, 0, 10)
+			HexTxt.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+			HexTxt.TextColor3 = Color3.fromRGB(255, 255, 255)
+			HexTxt.TextSize = 12
+			HexTxt.Font = Enum.Font.BuilderSansMedium
+			HexTxt.ZIndex = 62
+			HexTxt.Parent = CPBox
+			AddCorner(4, HexTxt)
+
+			local ColourWheel = Instance.new("TextButton")
+			ColourWheel.Size = UDim2.fromOffset(150, 130)
+			ColourWheel.Position = UDim2.new(0, 10, 0, 48)
+			ColourWheel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			ColourWheel.AutoButtonColor = false
+			ColourWheel.Text = ""
+			ColourWheel.Name = "ColourWheel"
+			ColourWheel.ZIndex = 62
+			ColourWheel.Parent = CPBox
+			AddCorner(6, ColourWheel)
+
+			local WheelGrad = Instance.new("UIGradient")
+			WheelGrad.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+				ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 255, 0)),
+				ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
+				ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+				ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 0, 255)),
+				ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0)),
+			})
+			WheelGrad.Parent = ColourWheel
+
+			local WheelPicker = Instance.new("Frame")
+			WheelPicker.Size = UDim2.fromOffset(10, 10)
+			WheelPicker.AnchorPoint = Vector2.new(0.5, 0.5)
+			WheelPicker.Position = UDim2.fromScale(0.5, 0.5)
+			WheelPicker.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			WheelPicker.Name = "Picker"
+			WheelPicker.ZIndex = 63
+			WheelPicker.Parent = ColourWheel
+			AddCorner(5, WheelPicker)
+
+			local WheelPickerStroke = Instance.new("UIStroke")
+			WheelPickerStroke.Thickness = 2
+			WheelPickerStroke.Color = Color3.fromRGB(0, 0, 0)
+			WheelPickerStroke.Parent = WheelPicker
+
+			local DarknessPicker = Instance.new("TextButton")
+			DarknessPicker.Size = UDim2.fromOffset(18, 130)
+			DarknessPicker.Position = UDim2.new(0, 168, 0, 48)
+			DarknessPicker.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			DarknessPicker.AutoButtonColor = false
+			DarknessPicker.Text = ""
+			DarknessPicker.Name = "DarknessPicker"
+			DarknessPicker.ZIndex = 62
+			DarknessPicker.Parent = CPBox
+			AddCorner(4, DarknessPicker)
+
+			local DarkGrad = Instance.new("UIGradient")
+			DarkGrad.Rotation = 90
+			DarkGrad.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0)),
+			})
+			DarkGrad.Name = "UIGradient"
+			DarkGrad.Parent = DarknessPicker
+
+			local DarknessSlider = Instance.new("Frame")
+			DarknessSlider.Size = UDim2.new(1, 0, 0, 18)
+			DarknessSlider.AnchorPoint = Vector2.new(0, 0)
+			DarknessSlider.Position = UDim2.new(0, 0, 0, 0)
+			DarknessSlider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			DarknessSlider.BackgroundTransparency = 1
+			DarknessSlider.Name = "Slider"
+			DarknessSlider.ZIndex = 63
+			DarknessSlider.Parent = DarknessPicker
+
+			local Line = Instance.new("Frame")
+			Line.Size = UDim2.new(1, 0, 0, 4)
+			Line.Position = UDim2.new(0, 0, 0, 0)
+			Line.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			Line.ZIndex = 64
+			Line.Parent = DarknessSlider
+			AddCorner(2, Line)
+
+			local lineStroke = Instance.new("UIStroke")
+			lineStroke.Thickness = 1.5
+			lineStroke.Color = Color3.fromRGB(0, 0, 0)
+			lineStroke.Parent = Line
+
+			local buttonDown = false
+			local movingSlider = false
+
+			local function updateColour(centreOfWheel)
+				local colourPickerCentre = Vector2.new(
+					WheelPicker.AbsolutePosition.X + (WheelPicker.AbsoluteSize.X / 2),
+					WheelPicker.AbsolutePosition.Y + (WheelPicker.AbsoluteSize.Y / 2)
+				)
+				local h = (
+					math.pi - math.atan2(colourPickerCentre.Y - centreOfWheel.Y, colourPickerCentre.X - centreOfWheel.X)
+				) / (math.pi * 2)
+				local s = (centreOfWheel - colourPickerCentre).Magnitude / (ColourWheel.AbsoluteSize.X / 2)
+				local v = math.abs(
+					(Line.AbsolutePosition.Y - DarknessPicker.AbsolutePosition.Y) / DarknessPicker.AbsoluteSize.Y - 1
+				)
+				local hsv = Color3.fromHSV(math.clamp(h, 0, 1), math.clamp(s, 0, 1), math.clamp(v, 0, 1))
+
+				ColourDisplay.BackgroundColor3 = hsv
+				HexTxt.Text = " #" .. hsv:ToHex()
+				DarkGrad.Color = ColorSequence.new({
+					ColorSequenceKeypoint.new(
+						0,
+						Color3.fromHSV(math.clamp(h, 0, 1), math.clamp(s, 0, 1), 1)
+					),
+					ColorSequenceKeypoint.new(1, Color3.new(0, 0, 0)),
+				})
+				pcall(callback, hsv)
+			end
+
+			ColourWheel.MouseButton1Down:Connect(function()
+				buttonDown = true
+			end)
+
+			DarknessPicker.MouseButton1Down:Connect(function()
+				movingSlider = true
+			end)
+
+			UserInputService.InputEnded:Connect(function(input)
+				if
+					input.UserInputType ~= Enum.UserInputType.MouseButton1
+					and input.UserInputType ~= Enum.UserInputType.Touch
+				then
+					return
+				end
+				buttonDown = false
+				movingSlider = false
+			end)
+
+			UserInputService.InputChanged:Connect(function(input)
+				if
+					input.UserInputType ~= Enum.UserInputType.MouseMovement
+					and input.UserInputType ~= Enum.UserInputType.Touch
+				then
+					return
+				end
+				if not CPOverlay.Visible then
+					return
+				end
+
+				local mousePos = UserInputService:GetMouseLocation() - Vector2.new(0, GuiService:GetGuiInset().Y)
+				local centreOfWheel = Vector2.new(
+					ColourWheel.AbsolutePosition.X + (ColourWheel.AbsoluteSize.X / 2),
+					ColourWheel.AbsolutePosition.Y + (ColourWheel.AbsoluteSize.Y / 2)
+				)
+				local distanceFromWheel = (mousePos - centreOfWheel).Magnitude
+
+				if distanceFromWheel <= ColourWheel.AbsoluteSize.X / 2 and buttonDown then
+					WheelPicker.Position = UDim2.new(
+						0,
+						mousePos.X - ColourWheel.AbsolutePosition.X,
+						0,
+						mousePos.Y - ColourWheel.AbsolutePosition.Y
+					)
+				elseif movingSlider then
+					DarknessSlider.Position = UDim2.new(
+						0,
+						0,
+						0,
+						math.clamp(mousePos.Y - DarknessPicker.AbsolutePosition.Y, 0, DarknessPicker.AbsoluteSize.Y)
+					)
+					local outOfBounds = false
+					if
+						DarknessSlider.Position.Y.Offset <= 10
+						or DarknessSlider.Position.Y.Offset >= DarknessPicker.AbsoluteSize.Y - 10
+					then
+						outOfBounds = true
+					end
+					if outOfBounds then
+						local lol = DarknessSlider.Position.Y.Offset
+						if DarknessSlider.Position.Y.Offset >= DarknessPicker.AbsoluteSize.Y - 10 then
+							lol = DarknessPicker.AbsoluteSize.Y - DarknessSlider.Position.Y.Offset
+						end
+						Line.Size = UDim2.new((lol / 10) + 0.3, 0, Line.Size.Y.Scale, Line.Size.Y.Offset)
+					else
+						Line.Size = UDim2.new(1, 0, Line.Size.Y.Scale, Line.Size.Y.Offset)
+					end
+				elseif buttonDown then
+					local angle = math.atan2(mousePos.Y - centreOfWheel.Y, mousePos.X - centreOfWheel.X)
+					local x = math.cos(angle) * ColourWheel.AbsoluteSize.X / 2
+					local y = math.sin(angle) * ColourWheel.AbsoluteSize.X / 2
+					WheelPicker.Position = UDim2.new(
+						0,
+						x + ColourWheel.AbsoluteSize.X / 2,
+						0,
+						y + ColourWheel.AbsoluteSize.Y / 2
+					)
+				end
+
+				updateColour(centreOfWheel)
+			end)
+
+			Clicker.MouseButton1Click:Connect(function()
+				PlaySound(6041321736, 0.2)
+				CPOverlay.Visible = true
+			end)
+
+			local CloseCP = Instance.new("TextButton")
+			CloseCP.Size = UDim2.fromOffset(20, 20)
+			CloseCP.Position = UDim2.new(1, -25, 0, 14)
+			CloseCP.BackgroundTransparency = 1
+			CloseCP.Text = "X"
+			CloseCP.TextColor3 = Color3.fromRGB(200, 200, 200)
+			CloseCP.TextSize = 12
+			CloseCP.Font = Enum.Font.BuilderSansBold
+			CloseCP.ZIndex = 63
+			CloseCP.Parent = CPBox
+
+			CloseCP.MouseButton1Click:Connect(function()
+				PlaySound(6041321736, 0.2)
+				CPOverlay.Visible = false
+			end)
+
+			table.insert(RegisteredElements, { Type = "Element", Instance = Frame, Stroke = Stroke, Label = Txt })
+			UpdateTheme(StyxUI.CurrentTheme.Name, false)
+			return Frame
+		end
+
+		return TabObj
+	end
+
+	UpdateTheme(currentThemeName, false)
+
+	MainFrame.Visible = true
+	TweenService:Create(
+		MainFrame,
+		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Size = UDim2.fromOffset(480, 330), BackgroundTransparency = 0.15 }
+	):Play()
+
+	return WindowObj
+end
+
+function StyxUI:Notification(config)
+	config = config or {}
+	local title = config.Title or "Notification"
+	local content = config.Content or ""
+	local duration = config.Duration or 3
+
+	PlaySound(6041321736, 0.3)
+
+	local NotifFrame = Instance.new("Frame")
+	NotifFrame.Size = UDim2.new(1, 0, 0, 0)
+	NotifFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+	NotifFrame.BackgroundTransparency = 0.15
+	NotifFrame.ClipsDescendants = true
+	NotifFrame.Parent = NotificationHolder
+	AddCorner(8, NotifFrame)
+
+	local NotifStroke = Instance.new("UIStroke")
+	NotifStroke.Thickness = 5
+	NotifStroke.Transparency = 0.2
+	ApplyThemeValue(
+		NotifStroke,
+		"Color",
+		(StyxUI.CurrentTheme and (StyxUI.CurrentTheme.Outline or StyxUI.CurrentTheme.Accent)) or Color3.fromHex("#3f3f46")
+	)
+	NotifStroke.Parent = NotifFrame
+
+	local TitleLbl = Instance.new("TextLabel")
+	TitleLbl.Text = title
+	TitleLbl.TextSize = 12
+	TitleLbl.Font = Enum.Font.BuilderSansBold
+	TitleLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TitleLbl.Position = UDim2.new(0, 10, 0, 8)
+	TitleLbl.Size = UDim2.new(1, -20, 0, 16)
+	TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+	TitleLbl.BackgroundTransparency = 1
+	TitleLbl.Parent = NotifFrame
+
+	local ContentLbl = Instance.new("TextLabel")
+	ContentLbl.Text = content
+	ContentLbl.TextSize = 11
+	ContentLbl.Font = Enum.Font.BuilderSans
+	ContentLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+	ContentLbl.Position = UDim2.new(0, 10, 0, 26)
+	ContentLbl.Size = UDim2.new(1, -20, 0, 24)
+	ContentLbl.TextXAlignment = Enum.TextXAlignment.Left
+	ContentLbl.TextYAlignment = Enum.TextYAlignment.Top
+	ContentLbl.TextWrapped = true
+	ContentLbl.BackgroundTransparency = 1
+	ContentLbl.Parent = NotifFrame
+
+	TweenService:Create(
+		NotifFrame,
+		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Size = UDim2.new(1, 0, 0, 60) }
+	):Play()
+
+	task.delay(duration, function()
+		local outTween = TweenService:Create(
+			NotifFrame,
+			TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+			{ Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1 }
+		)
+		outTween:Play()
+		outTween.Completed:Connect(function()
+			NotifFrame:Destroy()
+		end)
+	end)
+end
+
+function StyxUI:KeySystem(config)
+	config = config or {}
+	local Title = config.Title or "Key System"
+	local Link = config.Link or ""
+	local Keys = config.Keys or {}
+	local OnSuccess = config.OnSuccess or function() end
+
+	local KeyGui = Instance.new("ScreenGui")
+	KeyGui.Name = "StyxUI_KeySystem"
+	KeyGui.ResetOnSpawn = false
+	KeyGui.Parent = CoreGui
+
+	local Frame = Instance.new("Frame")
+	Frame.Size = UDim2.fromOffset(0, 0)
+	Frame.Position = UDim2.fromScale(0.5, 0.5)
+	Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+	Frame.BackgroundTransparency = 1
+	Frame.ClipsDescendants = true
+	Frame.Parent = KeyGui
+	AddCorner(10, Frame)
+
+	local Stroke = Instance.new("UIStroke")
+	Stroke.Thickness = 5
+	Stroke.Transparency = 0.2
+	Stroke.Color = Color3.fromHex("#3f3f46")
+	Stroke.Parent = Frame
+
+	local TitleLabel = Instance.new("TextLabel")
+	TitleLabel.Text = Title
+	TitleLabel.TextSize = 14
+	TitleLabel.Font = Enum.Font.BuilderSansBold
+	TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TitleLabel.Position = UDim2.new(0, 15, 0, 10)
+	TitleLabel.Size = UDim2.new(1, -30, 0, 20)
+	TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	TitleLabel.BackgroundTransparency = 1
+	TitleLabel.Parent = Frame
+
+	local TextBoxFrame = Instance.new("Frame")
+	TextBoxFrame.Size = UDim2.new(1, -30, 0, 32)
+	TextBoxFrame.Position = UDim2.new(0, 15, 0, 40)
+	TextBoxFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 27)
+	TextBoxFrame.Parent = Frame
+	AddCorner(6, TextBoxFrame)
+
+	local TextBoxStroke = Instance.new("UIStroke")
+	TextBoxStroke.Thickness = 1.5
+	TextBoxStroke.Transparency = 0.5
+	TextBoxStroke.Color = Color3.fromHex("#3f3f46")
+	TextBoxStroke.Parent = TextBoxFrame
+
+	local TextBox = Instance.new("TextBox")
+	TextBox.Size = UDim2.new(1, -10, 1, 0)
+	TextBox.Position = UDim2.new(0, 5, 0, 0)
+	TextBox.BackgroundTransparency = 1
+	TextBox.Text = ""
+	TextBox.PlaceholderText = "Enter Key..."
+	TextBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+	TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TextBox.TextSize = 12
+	TextBox.Font = Enum.Font.BuilderSansMedium
+	TextBox.ClearTextOnFocus = false
+	TextBox.Parent = TextBoxFrame
+
+	local GetKeyBtn = Instance.new("TextButton")
+	GetKeyBtn.Size = UDim2.new(0.5, -20, 0, 30)
+	GetKeyBtn.Position = UDim2.new(0, 15, 0, 80)
+	GetKeyBtn.BackgroundColor3 = Color3.fromRGB(39, 39, 42)
+	GetKeyBtn.Text = "Get Key"
+	GetKeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	GetKeyBtn.Font = Enum.Font.BuilderSansBold
+	GetKeyBtn.TextSize = 12
+	GetKeyBtn.Parent = Frame
+	AddCorner(6, GetKeyBtn)
+	AddButtonAnimation(GetKeyBtn, GetKeyBtn, 0.95)
+
+	local VerifyBtn = Instance.new("TextButton")
+	VerifyBtn.Size = UDim2.new(0.5, -20, 0, 30)
+	VerifyBtn.Position = UDim2.new(0.5, 5, 0, 80)
+	VerifyBtn.BackgroundColor3 = Color3.fromRGB(51, 199, 89)
+	VerifyBtn.Text = "Verify"
+	VerifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	VerifyBtn.Font = Enum.Font.BuilderSansBold
+	VerifyBtn.TextSize = 12
+	VerifyBtn.Parent = Frame
+	AddCorner(6, VerifyBtn)
+	AddButtonAnimation(VerifyBtn, VerifyBtn, 0.95)
+
+	Frame.Visible = true
+	TweenService:Create(
+		Frame,
+		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Size = UDim2.fromOffset(300, 125), BackgroundTransparency = 0.15 }
+	):Play()
+
+	GetKeyBtn.MouseButton1Click:Connect(function()
+		PlaySound(6041321736, 0.2)
+		if setclipboard then
+			setclipboard(Link)
+		end
+	end)
+
+	VerifyBtn.MouseButton1Click:Connect(function()
+		PlaySound(6041321736, 0.2)
+		local entered = TextBox.Text
+		local valid = false
+
+		for _, k in ipairs(Keys) do
+			if k == entered then
+				valid = true
+				break
+			end
+		end
+
+		if valid then
+			local closeTween = TweenService:Create(
+				Frame,
+				TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+				{ Size = UDim2.fromOffset(0, 0), BackgroundTransparency = 1 }
+			)
+			closeTween:Play()
+			closeTween.Completed:Connect(function()
+				KeyGui:Destroy()
+				OnSuccess()
+			end)
+		else
+			TextBox.Text = ""
+			TextBox.PlaceholderText = "Invalid Key!"
+			TextBox.PlaceholderColor3 = Color3.fromRGB(255, 50, 50)
+			task.delay(1.5, function()
+				TextBox.PlaceholderText = "Enter Key..."
+				TextBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+			end)
+		end
+	end)
+end
+
+return StyxUI
